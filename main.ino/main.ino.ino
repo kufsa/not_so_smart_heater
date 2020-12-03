@@ -1,5 +1,10 @@
-#define rotary_dt 2
-#define rotary_clk 3
+#include <Arduino.h>
+#include <U8g2lib.h>
+#include <SPI.h>
+#include <Wire.h>
+
+#define rotary_dt 3
+#define rotary_clk 2
 #define rotary_switch 4
 #define relay 5
 
@@ -16,6 +21,10 @@ int min_temp = 10;
 int max_temp = 30;
 int mode = 0;
 int mode_size = 3;
+int display_mode = 1;  // 0: off 1: on
+
+
+U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0);
 
 void setup() {
   Serial.begin(9600);
@@ -26,26 +35,40 @@ void setup() {
   pinMode(relay, OUTPUT);
   pinMode(13, OUTPUT);
 
-  Serial.println("==============");
   printModeTemps();
-  Serial.println("");
-  Serial.println("==============");
 
-  Serial.print("mode: ");
-  Serial.println(modes[mode]);
-
-  attachInterrupt(digitalPinToInterrupt(rotary_switch), cycleMode, RISING);
+  attachInterrupt(digitalPinToInterrupt(rotary_switch), switchHandler, RISING);
   attachInterrupt(digitalPinToInterrupt(rotary_clk), setCurrentModeTemp, CHANGE);
+
+  u8g2.begin();
+  u8g2.clearBuffer();
+  u8g2.setFont(u8g2_font_crox1c_tf);
+  u8g2.drawStr(0, 12, "Starting");
+  u8g2.sendBuffer();
   
+  for (int i=65; i<81; i+=4) {
+    delay(250);
+    u8g2.drawStr(i, 12, ".");
+    u8g2.sendBuffer();
+  }
 }
 
 void printModeTemps() {
-  for (int i=0; i<mode_size; i=i+1) {
+  for (int i=0; i<mode_size; i++) {
       Serial.print(modes[i]);
       Serial.print(": ");
       Serial.print(temps[i]);
       Serial.print(" ");
   }
+  Serial.print("Mode: ");
+  Serial.print(modes[mode]);
+  Serial.println();
+  Serial.println("=========");
+}
+
+
+void switchHandler() {
+  cycleMode();
 }
 
 void cycleMode() {
@@ -54,12 +77,20 @@ void cycleMode() {
   if (mode>=mode_size) {
     mode = 0;
   }
-  
-  Serial.print("mode: ");
-  Serial.print(modes[mode]);
-  Serial.print(" Target: ");
-  Serial.print(temps[mode]);
-  Serial.println("C");
+  printModeTemps();
+}
+
+void printDisplay() {
+  u8g2.clearBuffer();
+  if (mode != 0) {
+    u8g2.drawStr(0,12,"Status: ");
+    u8g2.setCursor(60,12);
+    u8g2.print(modes[mode]);
+    u8g2.drawStr(0,24,"Target: ");
+    u8g2.setCursor(60,24);
+    u8g2.print(getCurrentModeTemp());
+  }
+  u8g2.sendBuffer();
 }
 
 int getCurrentModeTemp() {
@@ -80,18 +111,20 @@ void setCurrentModeTemp() {
     }
     temps[mode] = _temp;
     printModeTemps();
-    Serial.println("");
   }
   rotaryLastStateCLK = rotaryCurrentStateCLK;
 }
 
 void loop() {
-  // Keep in mind the pull-up means the pushbutton's logic is inverted. It goes
-  // HIGH when it's open, and LOW when it's pressed. Turn on pin 13 when the
-  // button's pressed, and off when it's not:
 
+  printDisplay();
+  
   digitalWrite(13, HIGH);
   delay(200);
+
+  printDisplay();
+  
   digitalWrite(13, LOW);
   delay(200);  
+  
 }
