@@ -1,3 +1,6 @@
+#include <DHT.h>
+#include <DHT_U.h>
+
 #include <Arduino.h>
 #include <U8g2lib.h>
 #include <SPI.h>
@@ -6,8 +9,9 @@
 #define rotary_dt 3
 #define rotary_clk 2
 #define rotary_switch 4
-#define relay 5
-
+#define DHTPIN 5
+#define relay 6
+#define DHTTYPE DHT11
 
 String rotary_rotation;
 int push_switch_last_value;
@@ -17,7 +21,7 @@ int rotaryLastStateCLK;
 
 String modes[] = {"off", "min", "max"};
 int temps[] = {0,     15,    21};
-int min_temp = 10;
+int min_temp = 5;
 int max_temp = 30;
 int mode = 0;
 int mode_size = 3;
@@ -25,18 +29,22 @@ int display_mode = 1;  // 0: off 1: on
 int screen_auto_off = 5 * 1000;
 int auto_mode_change = 1000 * 3600;  // One hour on mode max. then swich back to min
 unsigned long last_action = millis();
+float last_temp = 0.0;
+unsigned long last_temp_read = millis();
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0);
+DHT dht(DHTPIN, DHTTYPE);
 
 void setup() {
   Serial.begin(9600);
+  dht.begin();
 
   pinMode(rotary_clk, INPUT);
   pinMode(rotary_dt, INPUT);
   pinMode(rotary_switch, INPUT_PULLUP);
-  pinMode(relay, OUTPUT);
+  //pinMode(relay, OUTPUT);
   pinMode(13, OUTPUT);
-
+  
   printModeTemps();
 
   attachInterrupt(digitalPinToInterrupt(rotary_switch), switchHandler, RISING);
@@ -70,7 +78,10 @@ void printModeTemps() {
 
 
 void switchHandler() {
-  cycleMode();
+  if (display_mode != 0) {
+    // only cycle when screen is on
+    cycleMode();
+  }
   logLastAction();
 }
 
@@ -94,10 +105,15 @@ void printDisplay() {
   u8g2.print(modes[mode]);
   
   if (mode != 0) {
-    u8g2.drawStr(0,24,"Target: ");
-    u8g2.setCursor(60,24);
+    u8g2.setCursor(0,25);
     u8g2.print(getCurrentModeTemp());
+    u8g2.setCursor(19,25);
+    u8g2.print("C |");
   }
+  u8g2.setCursor(50,25);
+  u8g2.print(int(getTemp()));
+  u8g2.setCursor(70,25);
+  u8g2.print("C");
   u8g2.sendBuffer();
 }
 
@@ -105,16 +121,26 @@ int getCurrentModeTemp() {
   return temps[mode];
 }
 
+float getTemp() {
+  unsigned long now = millis();
+  if (now > last_temp_read + screen_auto_off or last_temp_read == 0.0) {
+    last_temp = dht.readTemperature();
+    Serial.print("TEMP: ");
+    Serial.println(last_temp);
+    last_temp_read = now;
+  }
+  return last_temp;
+}
+
 void setCurrentModeTemp() {
   rotaryCurrentStateCLK = digitalRead(rotary_clk);
   int dt = digitalRead(rotary_dt);
   int _temp = temps[mode];
-  if (rotaryCurrentStateCLK != rotaryLastStateCLK && rotaryCurrentStateCLK == 1 && mode != 0) {  
+  if (rotaryCurrentStateCLK != rotaryLastStateCLK && rotaryCurrentStateCLK == 1 && mode != 0 && display_mode == 1) {  
     if (rotaryCurrentStateCLK != dt && _temp < max_temp) {
       _temp++;
     } else if (rotaryCurrentStateCLK == dt && _temp > min_temp) {
       _temp--;
-      logLastAction();
     }
     temps[mode] = _temp;
   }
@@ -126,10 +152,12 @@ void setCurrentModeTemp() {
 void loop() { 
   unsigned long now = millis();
   if (now > last_action + screen_auto_off) {
-      // Turn off screen after inactivity
-      u8g2.clearBuffer();
-      u8g2.sendBuffer();
+    // Turn off screen after inactivity
+    display_mode = 0;
+    u8g2.clearBuffer();
+    u8g2.sendBuffer();
   } else {
-      printDisplay();
+    display_mode = 1;
+    printDisplay();
   }
 }
