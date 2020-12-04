@@ -22,7 +22,9 @@ int max_temp = 30;
 int mode = 0;
 int mode_size = 3;
 int display_mode = 1;  // 0: off 1: on
-
+int screen_auto_off = 5 * 1000;
+int auto_mode_change = 1000 * 3600;  // One hour on mode max. then swich back to min
+unsigned long last_action = millis();
 
 U8G2_SSD1306_128X32_UNIVISION_F_HW_I2C u8g2(U8G2_R0);
 
@@ -69,6 +71,11 @@ void printModeTemps() {
 
 void switchHandler() {
   cycleMode();
+  logLastAction();
+}
+
+void logLastAction(){
+  last_action = millis();
 }
 
 void cycleMode() {
@@ -82,10 +89,11 @@ void cycleMode() {
 
 void printDisplay() {
   u8g2.clearBuffer();
+  u8g2.drawStr(0,12,"Status: ");
+  u8g2.setCursor(60,12);
+  u8g2.print(modes[mode]);
+  
   if (mode != 0) {
-    u8g2.drawStr(0,12,"Status: ");
-    u8g2.setCursor(60,12);
-    u8g2.print(modes[mode]);
     u8g2.drawStr(0,24,"Target: ");
     u8g2.setCursor(60,24);
     u8g2.print(getCurrentModeTemp());
@@ -101,30 +109,27 @@ void setCurrentModeTemp() {
   rotaryCurrentStateCLK = digitalRead(rotary_clk);
   int dt = digitalRead(rotary_dt);
   int _temp = temps[mode];
-  if (rotaryCurrentStateCLK != rotaryLastStateCLK && rotaryCurrentStateCLK == 1 && mode != 0) {
-      
+  if (rotaryCurrentStateCLK != rotaryLastStateCLK && rotaryCurrentStateCLK == 1 && mode != 0) {  
     if (rotaryCurrentStateCLK != dt && _temp < max_temp) {
       _temp++;
-    }
-    else if (rotaryCurrentStateCLK == dt && _temp > min_temp) {
+    } else if (rotaryCurrentStateCLK == dt && _temp > min_temp) {
       _temp--;
+      logLastAction();
     }
     temps[mode] = _temp;
-    printModeTemps();
   }
   rotaryLastStateCLK = rotaryCurrentStateCLK;
+  logLastAction();
 }
 
-void loop() {
 
-  printDisplay();
-  
-  digitalWrite(13, HIGH);
-  delay(200);
-
-  printDisplay();
-  
-  digitalWrite(13, LOW);
-  delay(200);  
-  
+void loop() { 
+  unsigned long now = millis();
+  if (now > last_action + screen_auto_off) {
+      // Turn off screen after inactivity
+      u8g2.clearBuffer();
+      u8g2.sendBuffer();
+  } else {
+      printDisplay();
+  }
 }
