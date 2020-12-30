@@ -20,7 +20,7 @@ int min_temp   = 5;                        // Hardcode a min temp
 int max_temp   = 30;                       // Hardcode a max temp
 int mode       = 0;                        // Start in mode 0: off
 int screen_auto_off = 5 * 1000;            // Screen auto
-unsigned long auto_mode_change = 60000;    // after one hour on max swich back to min
+unsigned long auto_mode_change = 6 * 1000 * 60 * 60; // after one hour on max swich back to min
 
 // Internal vairbales to hold statuses for each iteration
 int last_temp = 0;                         // Last temp reading
