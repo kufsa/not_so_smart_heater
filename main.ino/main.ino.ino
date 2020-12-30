@@ -93,7 +93,7 @@ void printStatus() {
 void switchHandler() {
   // Handle interrupt call from encoder switch
   unsigned long now = millis();
-  
+
   if (display_mode != 0 && now - last_switch_throw > 10) {
     // only cycle when screen is on and input is debounced
     cycleMode();
@@ -101,6 +101,7 @@ void switchHandler() {
   }
   logLastAction();
 }
+
 
 void logLastAction(){
   last_action = millis();
@@ -137,9 +138,11 @@ void drawDisplay() {
   u8g2.sendBuffer();
 }
 
+
 int getCurrentModeTemp() {
   return temps[mode];
 }
+
 
 int getTemp() {
   unsigned long now = millis();
@@ -166,6 +169,7 @@ void setCurrentModeTemp() {
   rotaryLastStateCLK = rotaryCurrentStateCLK;
   logLastAction();
 }
+
 
 void driveHeaterRelay() {
   unsigned long now = millis();
