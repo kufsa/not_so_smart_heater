@@ -222,9 +222,23 @@ void driveHeaterRelay() {
 }
 
 
+void autoModeFallback() {
+  unsigned long now = millis();
+  if (mode == 2
+      && relay_status == 1
+      && now > last_relay_toggle + auto_mode_change
+      && now > last_relay_toggle + relay_toggle_timeout)
+  {
+    // Override mode to reset to min after auto_mode_change expires
+    mode = 1;
+    Serial.println("Auto fallback to min status");
+  }
+}
+
+
 void loop() { 
   unsigned long now = millis();
-  if (now > last_action + screen_auto_off) {
+  if (now > last_relay_toggle + screen_auto_off) {
     // Turn off screen after inactivity
     display_mode = 0;
     u8g2.clearBuffer();
