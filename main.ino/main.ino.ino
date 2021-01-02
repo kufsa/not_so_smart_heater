@@ -20,16 +20,20 @@ int min_temp   = 5;                        // Hardcode a min temp
 int max_temp   = 30;                       // Hardcode a max temp
 int mode       = 0;                        // Start in mode 0: off
 int screen_auto_off = 5 * 1000;            // Screen auto
-unsigned long auto_mode_change = 6 * 1000 * 60 * 60; // after one hour on max swich back to min
+int temp_sensor_correction = -3;           // Modify the temp read by this value - Heat in the case.
+unsigned long auto_mode_change = 3600000;  // after one hour on max swich back to min
+unsigned long relay_toggle_timeout = 605000; // Threshold to avoid rapird relay toggling
+unsigned long check_interval = 10000;      // Check temp every 10 seconds
 
-// Internal vairbales to hold statuses for each iteration
-int last_temp = 0;                         // Last temp reading
-int relay_status = 0;                      // 0: off 1: on
-int display_mode = 1;                      // 0: off 1: on
-unsigned long last_action = millis();      // Timestamp of last action ie: relay togged
-unsigned long last_temp_read = millis();   // Last time temp was read
-unsigned long last_relay_toggle = millis(); // Prevent fast relay toggling
-unsigned long last_switch_throw = millis(); // debounce switch
+
+// Internal vairbales
+int relay_status = 0;                        // 0: off 1: on
+int display_mode = 1;                        // 0: off 1: on
+unsigned long last_relay_toggle = millis();  // Timestamp of last action ie: relay togged
+unsigned long last_temp_read = millis();     // Last time temp was read
+unsigned long last_switch_throw = millis();  // debounce switch
+unsigned long last_interval_run = millis();  // last time the check was performed
+float temp_history[10];                      // Keep history of temp reads to calculate average
 
 
 String rotary_rotation;
