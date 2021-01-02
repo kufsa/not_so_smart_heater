@@ -200,26 +200,24 @@ void setCurrentModeTemp() {
     temps[mode] = _temp;
   }
   rotaryLastStateCLK = rotaryCurrentStateCLK;
+  driveHeaterRelay();
   logLastAction();
 }
 
 
 void driveHeaterRelay() {
   unsigned long now = millis();
-  if (now > last_relay_toggle + screen_auto_off) {
-    if (last_temp < temps[mode] && relay_status == 0) {
-      digitalWrite(RELAY, HIGH);
-      relay_status = 1;
-      last_action = millis();
-    } else if (last_temp >= temps[mode] && relay_status == 1) {
-      digitalWrite(RELAY, LOW);
-      relay_status = 0;
-    }
-    if (now > last_action + auto_mode_change && mode == 2 && relay_status == 1) {
-      // Override mode to reset to min after auto_mode_change expires
-      mode = 1;
-    }
+  if (getTemp() < temps[mode] && relay_status == 0) {
+    digitalWrite(RELAY, HIGH);
+    relay_status = 1;
+    last_relay_toggle = millis();
     last_relay_toggle = now;
+
+  } else if (getTemp() >= temps[mode] && relay_status == 1) {
+    digitalWrite(RELAY, LOW);
+    relay_status = 0;
+    last_relay_toggle = now;
+
   }
 }
 
@@ -235,6 +233,11 @@ void loop() {
     display_mode = 1;
     drawDisplay();
   }
-  getTemp();
-  driveHeaterRelay();
+
+  if (now > check_interval + last_interval_run) {
+    last_interval_run = now;
+    getTemp();
+    autoModeFallback();
+    driveHeaterRelay();
+  }
 }
