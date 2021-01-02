@@ -106,19 +106,21 @@ void printStatus() {
 void switchHandler() {
   // Handle interrupt call from encoder switch
   unsigned long now = millis();
-
-  if (display_mode != 0 && now - last_switch_throw > 10) {
+  printStatus();
+  if (display_mode != 0 && now - last_switch_throw > 100) {
     // only cycle when screen is on and input is debounced
     cycleMode();
     last_switch_throw = now;
   }
   logLastAction();
+  driveHeaterRelay();
 }
 
 
 void logLastAction(){
-  last_action = millis();
+  last_relay_toggle = millis();
 }
+
 
 void cycleMode() {
   // Cycle trough the modes - either from encoder switch press or
@@ -159,11 +161,29 @@ int getCurrentModeTemp() {
 
 int getTemp() {
   unsigned long now = millis();
-  if (now > last_temp_read + screen_auto_off or last_temp_read == 0.0) {
-    last_temp = int(dht.readTemperature());
+  float average_temp = 0.0;
+  int valid_values = 0;
+
+  if (now > last_temp_read + check_interval or last_temp_read == 0) {
+    // Move all history values one to the right to make room for the latest
+    for (byte i = 9; i > 0; i--) {
+      temp_history[i] = temp_history[i-1];
+    }
+    float current_temp = dht.readTemperature();
+    temp_history[0] = current_temp;
     last_temp_read = now;
+    printTempHistory();
   }
-  return last_temp;
+
+  for (byte i = 0; i < 10; i++) {
+    if (temp_history[i] != 0) {
+      // sum of all values in aray for average
+      average_temp = average_temp + temp_history[i];
+      valid_values++;
+    }
+  }
+  int corrected_temp = average_temp / valid_values + temp_sensor_correction;
+  return corrected_temp;
 }
 
 
