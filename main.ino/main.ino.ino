@@ -80,6 +80,15 @@ void setup() {
 }
 
 
+void printTempHistory() {
+  for (byte i=0; i<10; i++) {
+    Serial.print(temp_history[i]);
+    Serial.print(", ");
+  }
+  Serial.println();
+}
+
+
 void printStatus() {
   for (int i=0; i<mode_size; i++) {
       Serial.print(modes[i]);
